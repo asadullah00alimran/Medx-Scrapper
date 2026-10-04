@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medex BD Scraper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2v20M2 12h20"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Medex Scraper</h1>
+          <span class="sub-text">Smart Harvester & Anti-Detection</span>
+        </div>
+      </div>
+      <button id="openDashboardBtn" class="icon-btn" title="Open Full Dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="3" x2="9" y2="21"/>
+          <line x1="15" y1="3" x2="15" y2="21"/>
+          <line x1="3" y1="9" x2="21" y2="9"/>
+          <line x1="3" y1="15" x2="21" y2="15"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Status Banner -->
+    <div id="statusBanner" class="status-banner status-idle">
+      <div class="pulse-indicator"></div>
+      <span id="statusText">Ready to start</span>
+      <button id="skipRestBtn" class="skip-rest-btn hidden" title="Skip Rest Period">Skip</button>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card primary">
+        <div class="stat-header">
+          <span class="stat-label">Scraped</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div id="scrapedCount" class="stat-value">0</div>
+        <span class="stat-note">Valid Medicines</span>
+      </div>
+
+      <div class="stat-card warning">
+        <div class="stat-header">
+          <span class="stat-label">Skipped</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div id="skippedCount" class="stat-value">0</div>
+        <span class="stat-note">Missing / 404 IDs</span>
+      </div>
+
+      <div class="stat-card info">
+        <div class="stat-header">
+          <span class="stat-label">Current ID</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="7"/>
+            <polyline points="12 9 12 12 13.5 13.5"/>
+          </svg>
+        </div>
+        <div id="currentIdDisplay" class="stat-value">1</div>
+        <span class="stat-note" id="progressPct">Target: 40000</span>
+      </div>
+    </div>
+
+    <!-- Config Form -->
+    <div class="config-section">
+      <div class="input-row">
+        <div class="input-group">
+          <label for="startId">Start ID</label>
+          <input type="number" id="startId" value="1" min="1" step="1">
+        </div>
+        <div class="input-group">
+          <label for="endId">End ID</label>
+          <input type="number" id="endId" value="40000" min="1" step="1">
+        </div>
+        <div class="input-group">
+          <label for="delayMs">Base Delay</label>
+          <input type="number" id="delayMs" value="1800" min="500" step="100">
+        </div>
+      </div>
+
+      <!-- Smart Anti-Detection Toggles -->
+      <div class="toggle-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="enableJitter" checked>
+          <span>Human Random Delay (+Jitter)</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="enableCooldown" checked>
+          <span>Batch Rest (45s / 150 items)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="action-buttons">
+      <button id="startBtn" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        <span>Start Scraping</span>
+      </button>
+
+      <button id="pauseBtn" class="btn btn-warning" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="4" width="4" height="16"/>
+          <rect x="14" y="4" width="4" height="16"/>
+        </svg>
+        <span>Pause</span>
+      </button>
+
+      <button id="stopBtn" class="btn btn-danger" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="5" y="5" width="14" height="14" rx="2"/>
+        </svg>
+        <span>Stop</span>
+      </button>
+    </div>
+
+    <!-- Export Section -->
+    <div class="export-section">
+      <div class="section-title">Download Data</div>
+      <div class="export-grid">
+        <button id="exportMedicinesBtn" class="btn-outline btn-outline-success">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Medicines CSV</span>
+        </button>
+
+        <button id="exportSkippedBtn" class="btn-outline btn-outline-warning">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Skipped IDs CSV</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer Links -->
+    <footer class="footer">
+      <button id="clearDataBtn" class="text-btn danger-text">Clear Stored Data</button>
+      <span class="sep">•</span>
+      <button id="launchDashboardFooter" class="text-btn">Live Dashboard Tab</button>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

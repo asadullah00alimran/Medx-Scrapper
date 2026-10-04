@@ -1,0 +1,18 @@
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Dependencies (if any added later)
+node_modules/
+
+# Editor directories
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Temporary downloaded CSVs / dumps
+*.tmp
+*.csv
+!examples/*.csv

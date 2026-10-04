@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Medex BD Harvester - Live Control & Data Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 2v20M2 12h20"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="nav-title">Medex BD Scraper Dashboard</h1>
+        <span class="nav-subtitle">High-speed Medicine Data Harvester & Missing ID Tracker</span>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <div id="liveStatusBadge" class="status-pill status-idle">
+        <span class="dot"></span>
+        <span id="liveStatusText">Ready to start</span>
+      </div>
+      <button id="exportMedTopBtn" class="btn btn-emerald">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Export Medicines CSV (<span id="topMedCount">0</span>)</span>
+      </button>
+      <button id="exportSkipTopBtn" class="btn btn-amber">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Export Skipped CSV (<span id="topSkipCount">0</span>)</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- Left Column: Controls & Metrics -->
+    <aside class="sidebar-panel">
+      <!-- Control Panel -->
+      <section class="card control-card">
+        <div class="card-header">
+          <h2>Scraper Controls</h2>
+          <span class="tag">Automation Engine</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="dashStartId">Start ID</label>
+            <input type="number" id="dashStartId" value="1" min="1" step="1">
+          </div>
+          <div class="form-group">
+            <label for="dashEndId">End ID</label>
+            <input type="number" id="dashEndId" value="40000" min="1" step="1">
+          </div>
+          <div class="form-group full-width">
+            <label for="dashDelayMs">Base Delay (ms)</label>
+            <div class="slider-wrapper">
+              <input type="range" id="dashDelaySlider" min="500" max="6000" step="100" value="1800">
+              <input type="number" id="dashDelayMs" min="500" max="10000" step="100" value="1800">
+            </div>
+            <small class="helper-text">Recommended: 1800ms - 2500ms to stay within Medex rate limits.</small>
+          </div>
+
+          <!-- Anti-Detection Toggles -->
+          <div class="form-group full-width anti-detect-panel">
+            <div class="panel-subtitle">Smart Anti-Detection (Prevents Captcha)</div>
+            <label class="dash-toggle">
+              <input type="checkbox" id="dashEnableJitter" checked>
+              <span><strong>Human Random Jitter:</strong> Adds +300ms to 1100ms variation between requests</span>
+            </label>
+            <label class="dash-toggle">
+              <input type="checkbox" id="dashEnableCooldown" checked>
+              <span><strong>Batch Rest:</strong> Rest for 
+                <input type="number" id="dashCooldownSeconds" value="45" min="10" max="300" style="width: 50px; padding: 2px 4px; display: inline-block;"> seconds every 
+                <input type="number" id="dashCooldownEvery" value="150" min="20" max="1000" style="width: 60px; padding: 2px 4px; display: inline-block;"> items
+              </span>
+            </label>
+            <label class="dash-toggle">
+              <input type="checkbox" id="dashAutoRetryCaptcha" checked>
+              <span><strong>Auto-Backoff & Retry:</strong> If challenged, rest 35s & retry automatically before prompting</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Cooldown Banner -->
+        <div id="dashCooldownBanner" class="dash-cooldown-banner hidden">
+          <div class="cooldown-content">
+            <span class="cooldown-icon">🧘</span>
+            <div>
+              <strong>Smart Rest in Progress:</strong>
+              <span id="dashCooldownCounter">45s remaining to protect IP reputation...</span>
+            </div>
+          </div>
+          <button id="dashSkipRestBtn" class="btn btn-secondary btn-sm">Skip Rest & Continue</button>
+        </div>
+
+        <div class="btn-group">
+          <button id="dashStartBtn" class="btn btn-primary btn-lg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span id="startBtnLabel">Start Scraping</span>
+          </button>
+          <button id="dashPauseBtn" class="btn btn-warning" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16"/>
+              <rect x="14" y="4" width="4" height="16"/>
+            </svg>
+            <span>Pause</span>
+          </button>
+          <button id="dashStopBtn" class="btn btn-danger" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="5" y="5" width="14" height="14" rx="2"/>
+            </svg>
+            <span>Stop</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Metrics Cards -->
+      <section class="card metrics-card">
+        <div class="card-header">
+          <h2>Live Statistics</h2>
+          <span class="refresh-badge" id="refreshTimer">Auto-refreshing</span>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric-box bg-emerald">
+            <span class="metric-label">Medicines Scraped</span>
+            <span class="metric-val" id="dashScrapedVal">0</span>
+            <span class="metric-sub">Added to CSV queue</span>
+          </div>
+
+          <div class="metric-box bg-amber">
+            <span class="metric-label">Skipped / Missing IDs</span>
+            <span class="metric-val" id="dashSkippedVal">0</span>
+            <span class="metric-sub">404s & Redirects</span>
+          </div>
+        </div>
+
+        <div class="progress-container">
+          <div class="progress-labels">
+            <span>Overall Traversal</span>
+            <span id="progressText">0% (ID 1 of 40000)</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="stat-list">
+          <div class="stat-item">
+            <span>Current Traversal ID:</span>
+            <strong id="dashCurrentId">1</strong>
+          </div>
+          <div class="stat-item">
+            <span>Current Target URL:</span>
+            <a id="currentTargetLink" href="https://medex.com.bd/brands/1" target="_blank" class="url-truncate">https://medex.com.bd/brands/1</a>
+          </div>
+          <div class="stat-item">
+            <span>Database Storage:</span>
+            <span>IndexedDB (Unlimited)</span>
+          </div>
+        </div>
+
+        <div class="danger-zone">
+          <button id="dashResetDbBtn" class="btn btn-outline-danger btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>Reset Database & Counters</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Live Logs Console -->
+      <section class="card log-card">
+        <div class="card-header">
+          <h2>Activity Log</h2>
+          <button id="clearLogsBtn" class="link-btn">Clear View</button>
+        </div>
+        <div class="log-stream" id="logStream">
+          <div class="log-entry info">[System] Scraper initialized. Ready to begin traversal from ID 1.</div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Right Column: Data Tables -->
+    <section class="content-panel">
+      <!-- Tabs Header -->
+      <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="tabMedicines">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+          <span>Scraped Medicines (<span id="tabMedCount">0</span>)</span>
+        </button>
+
+        <button class="tab-btn" data-tab="tabSkipped">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+          </svg>
+          <span>Skipped IDs Log (<span id="tabSkipCount">0</span>)</span>
+        </button>
+
+        <button class="tab-btn" data-tab="tabHelp">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span>Instructions & Tips</span>
+        </button>
+      </div>
+
+      <!-- Tab Content 1: Medicines Table -->
+      <div class="tab-pane active" id="tabMedicines">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="medSearchInput" placeholder="Filter by Brand, Generic, or Manufacturer...">
+          </div>
+          <div class="toolbar-actions">
+            <button id="refreshTableBtn" class="btn btn-secondary btn-sm">Refresh Table</button>
+            <button id="exportMedTableBtn" class="btn btn-emerald btn-sm">Download CSV</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th width="70">ID</th>
+                <th width="160">Brand Name</th>
+                <th width="110">Form</th>
+                <th width="180">Generic Name</th>
+                <th width="100">Strength</th>
+                <th width="180">Manufacturer</th>
+                <th width="100">Unit Price</th>
+                <th width="100">Strip Price</th>
+                <th width="120">Availability</th>
+                <th width="80">Action</th>
+              </tr>
+            </thead>
+            <tbody id="medicinesTableBody">
+              <tr>
+                <td colspan="10" class="empty-state">No scraped medicines loaded yet. Click <strong>Start Scraping</strong> to harvest data.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab Content 2: Skipped IDs Table -->
+      <div class="tab-pane" id="tabSkipped">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="skipSearchInput" placeholder="Filter skipped IDs or reasons...">
+          </div>
+          <div class="toolbar-actions">
+            <button id="refreshSkipTableBtn" class="btn btn-secondary btn-sm">Refresh List</button>
+            <button id="exportSkipTableBtn" class="btn btn-amber btn-sm">Download Skipped CSV</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th width="100">Skipped ID</th>
+                <th width="300">Attempted URL</th>
+                <th>Reason / Status</th>
+                <th width="180">Logged At</th>
+              </tr>
+            </thead>
+            <tbody id="skippedTableBody">
+              <tr>
+                <td colspan="4" class="empty-state">No skipped IDs yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab Content 3: Help & Guide -->
+      <div class="tab-pane" id="tabHelp">
+        <div class="help-card">
+          <h2>How Medex Scraper Operates</h2>
+          <div class="help-steps">
+            <div class="step-card">
+              <div class="step-num">1</div>
+              <h3>Sequential Traversal</h3>
+              <p>The extension visits Medex brand pages one by one (starting from ID 1, then ID 2, ID 3... up to your chosen End ID).</p>
+            </div>
+            <div class="step-card">
+              <div class="step-num">2</div>
+              <h3>Automatic Data Extraction</h3>
+              <p>When an ID is valid, it extracts Brand Name, Dosage Form, Generic Name, Strength, Manufacturer, Pricing, Indications, Pharmacology, Side Effects, and saves it into IndexedDB.</p>
+            </div>
+            <div class="step-card">
+              <div class="step-num">3</div>
+              <h3>Skipping Missing IDs</h3>
+              <p>If an ID does not exist (404, empty, or redirected to search/home), it gets recorded into the <strong>Skipped CSV</strong> with the reason.</p>
+            </div>
+            <div class="step-card">
+              <div class="step-num">4</div>
+              <h3>Cloudflare / Security Handling</h3>
+              <p>If Medex presents a captcha challenge, the scraper immediately pauses and alerts you. Simply solve the captcha in the open Medex tab and click <strong>Resume</strong>.</p>
+            </div>
+          </div>
+
+          <div class="csv-info-box">
+            <h3>Generated CSV Files:</h3>
+            <ul>
+              <li><strong>medex_medicines_[date].csv</strong>: Contains 25+ detailed columns with complete product information, indications, dosages, and prices formatted in UTF-8 with BOM (compatible with Microsoft Excel, Google Sheets, LibreOffice, and MySQL/Postgres).</li>
+              <li><strong>medex_skipped_ids_[date].csv</strong>: Contains every ID that was skipped, along with the URL and error reason.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Medicine Detail Modal -->
+  <div id="detailModal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modalBrandTitle">Medicine Details</h3>
+        <button id="modalCloseBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBodyContent">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

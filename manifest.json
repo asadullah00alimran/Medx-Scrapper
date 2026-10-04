@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Medex BD Medicine Scraper",
+  "version": "1.0.0",
+  "description": "Scrapes medicine brand details from medex.com.bd, handles missing IDs, and exports to CSV.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "downloads",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://medex.com.bd/*",
+    "*://*.medex.com.bd/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://medex.com.bd/brands/*",
+        "*://*.medex.com.bd/brands/*",
+        "*://medex.com.bd/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
